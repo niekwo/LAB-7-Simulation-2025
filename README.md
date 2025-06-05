@@ -33,7 +33,7 @@ This module is dedicated to real-time line following and ground sensor data proc
 
 * **Line Following State Determination**: Analyzes ground sensor values to determine the robot's state (`'forward'`, `'turn_left'`, `'turn_right'`, `'lost'`).
 * **Speed Computation**: Calculates appropriate left and right wheel speeds based on the detected line-following state.
-* **TCP Server**: Establishes a TCP server for communication, likely to receive commands or send sensor data.
+* **TCP Server**: Establishes a TCP server for communication
 
 ---
 
@@ -161,15 +161,15 @@ After the ESP32 is connected and ready, you have two main operational choices fo
 
 If you choose the A\* Path Planner (by pressing the **right button** on the ESP32):
 
-1.  **Start Visualization Promptly**: Within **10 seconds** of pressing the right button on the ESP32, switch to Visual Studio Code and run the `This code is for the visualization in Visual studio code.py` script. Click "Play" or execute the script to start the visualization.
+1.  **Start Visualization Promptly**: Within **10 seconds** of pressing the right button on the ESP32, switch to Visual Studio Code and run the `This code is for the visualization in Visual studio code.py` script. Click "Play"  to start the visualization.
     * **Important**: If the visualization is not started within this 10-second window, it will not be able to connect to the ESP32 for the current run, and you may need to restart the ESP32 process.
 2.  **Visualization Connection**: Once the visualization script connects to the ESP32, it will begin to display the robot's planned path and real-time position.
-3.  **Visualization Ready Indicator**: After the 10-second window, if the connection is successful, the green LED on the ESP32 will start shining, indicating that the visualization is successfully connected and synchronized.
-4.  **Start Webots**: Once the visualization is active and the green LED is shining, you can start the simulation in Webots. The robot in Webots will then execute its job according to the A\* path planned by the ESP32.
+3.  **Visualization Ready Indicator**: After the 10-second window, if the connection is successful or not, the green LED on the ESP32 will start shining, indicating that the visualization time has passed.
+4.  **Start Webots**: Once the green LED is shining, you can start the simulation in Webots. The robot in Webots will then execute its job according to the A\* path planned by the ESP32.
 
 ### 4. Running with Outer Line Follower (Webots only)
 
 If you choose the "in the loop" mode (Outer Line Follower) by pressing the **left button** on the ESP32:
 
-* The external visualization in Visual Studio Code is not typically used for this mode.
+* The external visualization in Visual Studio Code is not  used for this mode.
 * After pressing the left button on the ESP32, you can immediately start the simulation in Webots. The robot will then begin to execute the line-following algorithm in the simulated environment.
