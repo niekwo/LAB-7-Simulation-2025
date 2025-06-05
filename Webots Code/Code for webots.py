@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-Version 3: Encoder Integration
-==============================
+Version 4: Ground Sensors
+=========================
 
-This version adds wheel encoder sensors for odometry measurements,
-enabling velocity calculation and position tracking.
+This version adds ground sensor array for line detection and navigation,
+enabling the robot to detect dark lines on light surfaces.
 
 New Features:
-- Wheel encoder sensor initialization
-- Position reading capabilities
-- Velocity calculation from encoder data
-- Previous value tracking for differential calculations
+- Ground sensor array initialization
+- Surface reflectance measurement
+- Line detection capabilities
+- Multi-sensor data collection
 
 Author: N. Wolfs
-Version: 3.0
+Version: 4.0
 """
 
 from controller import Robot
@@ -29,7 +29,6 @@ timestep_seconds = timestep / 1000.0
 left_motor = robot.getDevice('left wheel motor')
 right_motor = robot.getDevice('right wheel motor')
 
-# Configure motors for velocity control
 left_motor.setPosition(float('inf'))
 right_motor.setPosition(float('inf'))
 left_motor.setVelocity(0.0)
@@ -44,32 +43,41 @@ for i in range(2):
     encoder.enable(timestep)
     encoders.append(encoder)
 
-# Initialize previous encoder values for velocity calculation
 previous_encoder_values = [0.0, 0.0]
 
-print("Encoder sensors initialized and enabled")
-print(f"Timestep: {timestep}ms ({timestep_seconds}s)")
+# Initialize ground sensor array
+ground_sensors = []
+ground_sensor_names = ['gs0', 'gs1', 'gs2']
 
-# Control loop with encoder reading
+for i in range(3):
+    sensor = robot.getDevice(ground_sensor_names[i])
+    sensor.enable(timestep)
+    ground_sensors.append(sensor)
+
+print("Ground sensor array initialized")
+print(f"Number of ground sensors: {len(ground_sensors)}")
+print("Sensors enabled for line detection")
+
+# Control loop with ground sensor reading
 while robot.step(timestep) != -1:
-    # Read current encoder positions
+    # Read encoder data
     current_encoder_values = [encoder.getValue() for encoder in encoders]
     
     # Calculate wheel velocities
     if previous_encoder_values[0] == 0.0 and previous_encoder_values[1] == 0.0:
-        # First iteration - no velocity calculation possible
         left_velocity = 0.0
         right_velocity = 0.0
     else:
-        # Calculate velocities using finite difference
         left_velocity = (current_encoder_values[0] - previous_encoder_values[0]) / timestep_seconds
         right_velocity = (current_encoder_values[1] - previous_encoder_values[1]) / timestep_seconds
     
-    # Store current values for next iteration
+    # Read ground sensor data
+    ground_sensor_values = [sensor.getValue() for sensor in ground_sensors]
+    
+    # Store current encoder values for next iteration
     previous_encoder_values = current_encoder_values[:]
     
     # Debug output (uncomment for testing)
-    # print(f"Encoder positions: L={current_encoder_values[0]:.2f}, R={current_encoder_values[1]:.2f}")
-    # print(f"Wheel velocities: L={left_velocity:.2f}, R={right_velocity:.2f}")
+    # print(f"Ground sensors: {ground_sensor_values[0]:.0f}, {ground_sensor_values[1]:.0f}, {ground_sensor_values[2]:.0f}")
 
-print("Encoder integration execution completed.")
+print("Ground sensor integration execution completed.")
