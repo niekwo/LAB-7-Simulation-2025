@@ -1,23 +1,24 @@
-
+#!/usr/bin/env python3
 """
-Version 6: Network Communication
-================================
+Version 7: Binary Protocol
+==========================
 
-This version adds TCP client socket communication capabilities,
-enabling connection to an ESP32 server for remote control.
+This version implements binary data serialization for efficient
+communication between the Webots client and ESP32 server.
 
 New Features:
-- TCP socket initialization
-- Connection to ESP32 server
-- Network error handling
-- Connection status monitoring
+- Struct-based binary data packing
+- Sensor data packet construction
+- Binary communication protocol
+- Efficient data transmission format
 
 Author: N. Wolfs
-Version: 6.0
+Version: 7.0
 """
 
 from controller import Robot
 import socket
+import struct
 
 # Network configuration
 ESP32_SERVER_IP = '192.168.1.21'
@@ -60,28 +61,23 @@ for i in range(3):
     ground_sensors.append(sensor)
 
 # Initialize TCP client connection
-print(f"Attempting to connect to ESP32 server at {ESP32_SERVER_IP}:{TCP_SERVER_PORT}...")
+print(f"Connecting to ESP32 server at {ESP32_SERVER_IP}:{TCP_SERVER_PORT}...")
 
 try:
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((ESP32_SERVER_IP, TCP_SERVER_PORT))
-    print("Connection established successfully with ESP32 server!")
+    print("Connection established successfully!")
     
 except socket.error as e:
-    print(f"Connection failed with error: {e}")
-    print("Troubleshooting checklist:")
-    print("- Verify ESP32 server application is running")
-    print("- Check network connectivity and IP address")
-    print("- Ensure firewall permits the connection")
-    
-    # Pause simulation when communication fails
+    print(f"Connection failed: {e}")
     robot.simulationSetMode(robot.SIMULATION_MODE_PAUSE)
     exit()
 
-print("Network communication system initialized")
-print("Starting networked control loop...")
+print("Binary protocol communication initialized")
+print("Data format: [gs0, gs1, gs2, wheel_vel_left, wheel_vel_right, delta_time]")
+print("Starting binary protocol control loop...")
 
-# Main control loop with network communication
+# Main control loop with binary protocol
 while robot.step(timestep) != -1:
     
     # ================================================================
@@ -103,11 +99,31 @@ while robot.step(timestep) != -1:
         right_velocity = (current_encoder_values[1] - previous_encoder_values[1]) / timestep_seconds
     
     # ================================================================
-    # NETWORK COMMUNICATION (PLACEHOLDER)
+    # BINARY DATA PACKET CONSTRUCTION
     # ================================================================
     
-    # Network communication will be implemented in next version
-    # For now, maintain local control
+    # Create binary data packet with sensor information
+    # Format: 6 floats packed as little-endian 32-bit values
+    sensor_data_packet = struct.pack('<6f', 
+                                   ground_sensor_values[0], 
+                                   ground_sensor_values[1], 
+                                   ground_sensor_values[2],
+                                   left_velocity, 
+                                   right_velocity, 
+                                   timestep_seconds)
+    
+    # ================================================================
+    # BINARY PROTOCOL TESTING
+    # ================================================================
+    
+    # For testing, we'll just verify packet construction
+    # Actual transmission will be implemented in next version
+    packet_size = len(sensor_data_packet)
+    
+    # Verify packet can be unpacked correctly
+    unpacked_data = struct.unpack('<6f', sensor_data_packet)
+    
+    # Apply default motor commands (stationary)
     left_motor_command = 0.0
     right_motor_command = 0.0
     
@@ -119,7 +135,10 @@ while robot.step(timestep) != -1:
     # ================================================================
     
     previous_encoder_values = current_encoder_values[:]
+    
+    # Debug output for binary protocol verification
+    # print(f"Packet size: {packet_size} bytes | Data: {unpacked_data}")
 
 # Cleanup
-print("Network communication execution completed.")
+print("Binary protocol execution completed.")
 client_socket.close()
