@@ -1,19 +1,20 @@
 
 """
-Version 8: Remote Control Integration
-====================================
+Version 9: Error Handling & Robustness
+======================================
 
-This version implements complete client-server architecture with
-bidirectional communication between Webots and ESP32.
+This version adds comprehensive error handling and robustness features
+for reliable operation in real-world conditions.
 
 New Features:
-- Send sensor data to ESP32 server
-- Receive motor commands from ESP32
-- Bidirectional binary communication
-- Remote control execution
+- Comprehensive error handling
+- Connection failure recovery
+- Emergency stop functionality
+- Graceful shutdown procedures
+- Detailed error reporting
 
 Author: N. Wolfs
-Version: 8.0
+Version: 9.0
 """
 
 from controller import Robot
@@ -60,40 +61,53 @@ for i in range(3):
     sensor.enable(timestep)
     ground_sensors.append(sensor)
 
-# Initialize TCP client connection
-print(f"Connecting to ESP32 server at {ESP32_SERVER_IP}:{TCP_SERVER_PORT}...")
+# Initialize robot state tracking (for reference)
+robot_x = 0.0
+robot_y = 0.0
+robot_theta = 0.0
+
+# Initialize TCP client connection with robust error handling
+print(f"Establishing connection to ESP32 server at {ESP32_SERVER_IP}:{TCP_SERVER_PORT}...")
 
 try:
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((ESP32_SERVER_IP, TCP_SERVER_PORT))
-    print("Connection established successfully!")
+    print("Connection established successfully with ESP32 server!")
     
-except socket.error as e:
-    print(f"Connection failed: {e}")
+except socket.error as socket_exception:
+    print(f"Connection failed with error: {socket_exception}")
+    print("Troubleshooting checklist:")
+    print("- Verify ESP32 server application is running")
+    print("- Check network connectivity and IP address")
+    print("- Ensure firewall permits the connection")
+    
+    # Pause simulation when communication fails
     robot.simulationSetMode(robot.SIMULATION_MODE_PAUSE)
     exit()
 
-print("Remote control system initialized")
-print("Starting remote control loop...")
+print("Robust control system initialized")
+print("Starting error-handled control loop...")
 
-# Main control loop with remote control
+# Main control loop with comprehensive error handling
 while robot.step(timestep) != -1:
     
     # ================================================================
-    # SENSOR DATA COLLECTION
+    # SENSOR DATA COLLECTION PHASE
     # ================================================================
     
     current_encoder_values = [encoder.getValue() for encoder in encoders]
     ground_sensor_values = [sensor.getValue() for sensor in ground_sensors]
     
     # ================================================================
-    # VELOCITY CALCULATION
+    # WHEEL VELOCITY CALCULATION
     # ================================================================
     
     if previous_encoder_values[0] == 0.0 and previous_encoder_values[1] == 0.0:
+        # First loop iteration - no velocity calculation possible
         left_velocity = 0.0
         right_velocity = 0.0
     else:
+        # Calculate velocities using finite difference method
         left_velocity = (current_encoder_values[0] - previous_encoder_values[0]) / timestep_seconds
         right_velocity = (current_encoder_values[1] - previous_encoder_values[1]) / timestep_seconds
     
@@ -111,7 +125,7 @@ while robot.step(timestep) != -1:
     
     try:
         # ============================================================
-        # SEND SENSOR DATA TO ESP32
+        # TRANSMIT SENSOR DATA TO ESP32
         # ============================================================
         
         client_socket.sendall(sensor_data_packet)
@@ -120,15 +134,27 @@ while robot.step(timestep) != -1:
         # RECEIVE MOTOR COMMANDS FROM ESP32
         # ============================================================
         
-        # Wait for motor command response (2 floats = 8 bytes)
-        motor_command_response = client_socket.recv(8)
+        motor_command_response = client_socket.recv(8)  # 2 floats × 4 bytes = 8 bytes
         
+        # Check for connection termination or empty response
         if not motor_command_response:
-            print("ESP32 server disconnected.")
+            print("ESP32 server disconnected or sent empty response.")
             break
             
-        # Unpack motor commands
+        # Verify response length
+        if len(motor_command_response) != 8:
+            print(f"Invalid response length: expected 8 bytes, received {len(motor_command_response)}")
+            continue
+            
+        # Unpack binary motor commands
         left_motor_command, right_motor_command = struct.unpack('<2f', motor_command_response)
+        
+        # Validate motor command values (safety check)
+        MAX_VELOCITY = 10.0  # Maximum safe velocity
+        if abs(left_motor_command) > MAX_VELOCITY or abs(right_motor_command) > MAX_VELOCITY:
+            print(f"Warning: Motor commands exceed safety limits. L={left_motor_command:.2f}, R={right_motor_command:.2f}")
+            left_motor_command = max(-MAX_VELOCITY, min(MAX_VELOCITY, left_motor_command))
+            right_motor_command = max(-MAX_VELOCITY, min(MAX_VELOCITY, right_motor_command))
         
         # ============================================================
         # EXECUTE MOTOR COMMANDS
@@ -137,9 +163,28 @@ while robot.step(timestep) != -1:
         left_motor.setVelocity(left_motor_command)
         right_motor.setVelocity(right_motor_command)
         
-    except socket.error as e:
-        print(f"Communication error: {e}")
-        # Emergency stop on communication failure
+    except socket.error as communication_error:
+        print(f"Socket communication error occurred: {communication_error}")
+        print("Initiating emergency stop and simulation pause.")
+        
+        # Emergency stop - set all motors to zero velocity
+        left_motor.setVelocity(0.0)
+        right_motor.setVelocity(0.0)
+        
+        # Pause simulation for safety
+        robot.simulationSetMode(robot.SIMULATION_MODE_PAUSE)
+        break
+        
+    except struct.error as unpacking_error:
+        print(f"Data unpacking error: {unpacking_error}")
+        print("Skipping this iteration and continuing...")
+        continue
+        
+    except Exception as unexpected_error:
+        print(f"Unexpected error occurred: {unexpected_error}")
+        print("Implementing emergency stop...")
+        
+        # Emergency stop for any unexpected error
         left_motor.setVelocity(0.0)
         right_motor.setVelocity(0.0)
         break
@@ -150,11 +195,20 @@ while robot.step(timestep) != -1:
     
     previous_encoder_values = current_encoder_values[:]
     
-    # Debug output (uncomment for testing)
-    # print(f"Sent: GS=[{ground_sensor_values[0]:.0f},{ground_sensor_values[1]:.0f},{ground_sensor_values[2]:.0f}] "
-    #       f"Vel=[{left_velocity:.2f},{right_velocity:.2f}] | "
-    #       f"Received: Motors=[{left_motor_command:.2f},{right_motor_command:.2f}]")
+    # Optional debug output (commented out for performance)
+    # print(f"GS: {ground_sensor_values[0]:.0f},{ground_sensor_values[1]:.0f},{ground_sensor_values[2]:.0f} | "
+    #       f"Sent: Wl:{left_velocity:.2f}, Wr:{right_velocity:.2f} | "
+    #       f"Rcvd: L:{left_motor_command:.2f}, R:{right_motor_command:.2f}")
 
-# Cleanup
-print("Remote control execution completed.")
-client_socket.close()
+# =====================================================================
+# CLEANUP AND SHUTDOWN
+# =====================================================================
+
+print("Robust controller execution completed.")
+
+# Close TCP socket connection gracefully
+try:
+    client_socket.close()
+    print("Network connection closed successfully.")
+except:
+    print("Note: Network connection was already closed.")
