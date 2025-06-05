@@ -1,22 +1,27 @@
 
 """
-Version 5: Local Control Loop
-=============================
+Version 6: Network Communication
+================================
 
-This version implements a complete local robot control system with
-sensor data collection and basic processing capabilities.
+This version adds TCP client socket communication capabilities,
+enabling connection to an ESP32 server for remote control.
 
 New Features:
-- Complete sensor data collection
-- Structured control loop
-- Data processing framework
-- Local autonomous operation capability
+- TCP socket initialization
+- Connection to ESP32 server
+- Network error handling
+- Connection status monitoring
 
 Author: N. Wolfs
-Version: 5.0
+Version: 6.0
 """
 
 from controller import Robot
+import socket
+
+# Network configuration
+ESP32_SERVER_IP = '192.168.1.21'
+TCP_SERVER_PORT = 65432
 
 # Create primary robot controller instance
 robot = Robot()
@@ -54,26 +59,36 @@ for i in range(3):
     sensor.enable(timestep)
     ground_sensors.append(sensor)
 
-# Initialize robot state tracking
-robot_x = 0.0
-robot_y = 0.0
-robot_theta = 0.0
+# Initialize TCP client connection
+print(f"Attempting to connect to ESP32 server at {ESP32_SERVER_IP}:{TCP_SERVER_PORT}...")
 
-print("Local control system initialized")
-print("All sensors enabled and ready")
-print("Starting main control loop...")
+try:
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((ESP32_SERVER_IP, TCP_SERVER_PORT))
+    print("Connection established successfully with ESP32 server!")
+    
+except socket.error as e:
+    print(f"Connection failed with error: {e}")
+    print("Troubleshooting checklist:")
+    print("- Verify ESP32 server application is running")
+    print("- Check network connectivity and IP address")
+    print("- Ensure firewall permits the connection")
+    
+    # Pause simulation when communication fails
+    robot.simulationSetMode(robot.SIMULATION_MODE_PAUSE)
+    exit()
 
-# Main control loop
+print("Network communication system initialized")
+print("Starting networked control loop...")
+
+# Main control loop with network communication
 while robot.step(timestep) != -1:
     
     # ================================================================
     # SENSOR DATA COLLECTION
     # ================================================================
     
-    # Read encoder positions
     current_encoder_values = [encoder.getValue() for encoder in encoders]
-    
-    # Read ground sensor values
     ground_sensor_values = [sensor.getValue() for sensor in ground_sensors]
     
     # ================================================================
@@ -88,15 +103,14 @@ while robot.step(timestep) != -1:
         right_velocity = (current_encoder_values[1] - previous_encoder_values[1]) / timestep_seconds
     
     # ================================================================
-    # LOCAL CONTROL LOGIC (PLACEHOLDER)
+    # NETWORK COMMUNICATION (PLACEHOLDER)
     # ================================================================
     
-    # This is where local control algorithms would be implemented
-    # For now, robot remains stationary
+    # Network communication will be implemented in next version
+    # For now, maintain local control
     left_motor_command = 0.0
     right_motor_command = 0.0
     
-    # Apply motor commands
     left_motor.setVelocity(left_motor_command)
     right_motor.setVelocity(right_motor_command)
     
@@ -105,9 +119,7 @@ while robot.step(timestep) != -1:
     # ================================================================
     
     previous_encoder_values = current_encoder_values[:]
-    
-    # Optional debug output
-    # print(f"GS: [{ground_sensor_values[0]:.0f},{ground_sensor_values[1]:.0f},{ground_sensor_values[2]:.0f}] | "
-    #       f"Vel: L={left_velocity:.2f}, R={right_velocity:.2f}")
 
-print("Local control execution completed.")
+# Cleanup
+print("Network communication execution completed.")
+client_socket.close()
