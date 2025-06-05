@@ -1,19 +1,19 @@
-#!/usr/bin/env python3
-"""
-Version 4: Ground Sensors
-=========================
 
-This version adds ground sensor array for line detection and navigation,
-enabling the robot to detect dark lines on light surfaces.
+"""
+Version 5: Local Control Loop
+=============================
+
+This version implements a complete local robot control system with
+sensor data collection and basic processing capabilities.
 
 New Features:
-- Ground sensor array initialization
-- Surface reflectance measurement
-- Line detection capabilities
-- Multi-sensor data collection
+- Complete sensor data collection
+- Structured control loop
+- Data processing framework
+- Local autonomous operation capability
 
 Author: N. Wolfs
-Version: 4.0
+Version: 5.0
 """
 
 from controller import Robot
@@ -54,16 +54,32 @@ for i in range(3):
     sensor.enable(timestep)
     ground_sensors.append(sensor)
 
-print("Ground sensor array initialized")
-print(f"Number of ground sensors: {len(ground_sensors)}")
-print("Sensors enabled for line detection")
+# Initialize robot state tracking
+robot_x = 0.0
+robot_y = 0.0
+robot_theta = 0.0
 
-# Control loop with ground sensor reading
+print("Local control system initialized")
+print("All sensors enabled and ready")
+print("Starting main control loop...")
+
+# Main control loop
 while robot.step(timestep) != -1:
-    # Read encoder data
+    
+    # ================================================================
+    # SENSOR DATA COLLECTION
+    # ================================================================
+    
+    # Read encoder positions
     current_encoder_values = [encoder.getValue() for encoder in encoders]
     
-    # Calculate wheel velocities
+    # Read ground sensor values
+    ground_sensor_values = [sensor.getValue() for sensor in ground_sensors]
+    
+    # ================================================================
+    # VELOCITY CALCULATION
+    # ================================================================
+    
     if previous_encoder_values[0] == 0.0 and previous_encoder_values[1] == 0.0:
         left_velocity = 0.0
         right_velocity = 0.0
@@ -71,13 +87,27 @@ while robot.step(timestep) != -1:
         left_velocity = (current_encoder_values[0] - previous_encoder_values[0]) / timestep_seconds
         right_velocity = (current_encoder_values[1] - previous_encoder_values[1]) / timestep_seconds
     
-    # Read ground sensor data
-    ground_sensor_values = [sensor.getValue() for sensor in ground_sensors]
+    # ================================================================
+    # LOCAL CONTROL LOGIC (PLACEHOLDER)
+    # ================================================================
     
-    # Store current encoder values for next iteration
+    # This is where local control algorithms would be implemented
+    # For now, robot remains stationary
+    left_motor_command = 0.0
+    right_motor_command = 0.0
+    
+    # Apply motor commands
+    left_motor.setVelocity(left_motor_command)
+    right_motor.setVelocity(right_motor_command)
+    
+    # ================================================================
+    # PREPARE FOR NEXT ITERATION
+    # ================================================================
+    
     previous_encoder_values = current_encoder_values[:]
     
-    # Debug output (uncomment for testing)
-    # print(f"Ground sensors: {ground_sensor_values[0]:.0f}, {ground_sensor_values[1]:.0f}, {ground_sensor_values[2]:.0f}")
+    # Optional debug output
+    # print(f"GS: [{ground_sensor_values[0]:.0f},{ground_sensor_values[1]:.0f},{ground_sensor_values[2]:.0f}] | "
+    #       f"Vel: L={left_velocity:.2f}, R={right_velocity:.2f}")
 
-print("Ground sensor integration execution completed.")
+print("Local control execution completed.")
