@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Version 1: Basic Robot Setup
-============================
+Version 2: Motor Control System
+===============================
 
-This version establishes the foundation by initializing the Webots robot
-controller and setting up basic timing parameters.
+This version adds differential drive motor control functionality,
+enabling basic movement capabilities for the E-puck robot.
 
-Features:
-- Robot instance creation
-- Timestep configuration
-- Basic simulation interface
+New Features:
+- Left and right wheel motor initialization
+- Velocity-based motor control
+- Motor safety (initial stop state)
 
 Author: N. Wolfs
-Version: 1.0
+Version: 2.0
 """
 
 from controller import Robot
@@ -23,11 +23,25 @@ robot = Robot()
 # Get simulation timestep
 timestep = int(robot.getBasicTimeStep())
 
-print(f"Robot controller initialized with timestep: {timestep}ms")
+# Initialize differential drive motors
+left_motor = robot.getDevice('left wheel motor')
+right_motor = robot.getDevice('right wheel motor')
 
-# Basic control loop
+# Configure motors for velocity control
+left_motor.setPosition(float('inf'))
+right_motor.setPosition(float('inf'))
+
+# Initialize motors in stopped state for safety
+left_motor.setVelocity(0.0)
+right_motor.setVelocity(0.0)
+
+print("Motor control system initialized")
+print("Left and right wheel motors configured for velocity control")
+
+# Basic control loop with motor control
 while robot.step(timestep) != -1:
-    # Placeholder for future functionality
+    # Motors remain stopped until external control is added
+    # This ensures safe operation
     pass
 
-print("Basic robot controller execution completed.")
+print("Motor control system execution completed.")
