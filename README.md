@@ -119,7 +119,7 @@ The following software versions are recommended for optimal performance:
         * `AStar.py`
         * `OuterLine.py`
         * `boot.py`
-        * `config2.py`
+        * `config.py`
         * `utils.py`
 
 ### 2. Visualization Setup (using Visual Studio Code)
