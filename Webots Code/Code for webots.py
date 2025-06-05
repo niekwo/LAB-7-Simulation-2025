@@ -1,19 +1,19 @@
-#!/usr/bin/env python3
-"""
-Version 7: Binary Protocol
-==========================
 
-This version implements binary data serialization for efficient
-communication between the Webots client and ESP32 server.
+"""
+Version 8: Remote Control Integration
+====================================
+
+This version implements complete client-server architecture with
+bidirectional communication between Webots and ESP32.
 
 New Features:
-- Struct-based binary data packing
-- Sensor data packet construction
-- Binary communication protocol
-- Efficient data transmission format
+- Send sensor data to ESP32 server
+- Receive motor commands from ESP32
+- Bidirectional binary communication
+- Remote control execution
 
 Author: N. Wolfs
-Version: 7.0
+Version: 8.0
 """
 
 from controller import Robot
@@ -73,11 +73,10 @@ except socket.error as e:
     robot.simulationSetMode(robot.SIMULATION_MODE_PAUSE)
     exit()
 
-print("Binary protocol communication initialized")
-print("Data format: [gs0, gs1, gs2, wheel_vel_left, wheel_vel_right, delta_time]")
-print("Starting binary protocol control loop...")
+print("Remote control system initialized")
+print("Starting remote control loop...")
 
-# Main control loop with binary protocol
+# Main control loop with remote control
 while robot.step(timestep) != -1:
     
     # ================================================================
@@ -99,11 +98,9 @@ while robot.step(timestep) != -1:
         right_velocity = (current_encoder_values[1] - previous_encoder_values[1]) / timestep_seconds
     
     # ================================================================
-    # BINARY DATA PACKET CONSTRUCTION
+    # SENSOR DATA PACKET CONSTRUCTION
     # ================================================================
     
-    # Create binary data packet with sensor information
-    # Format: 6 floats packed as little-endian 32-bit values
     sensor_data_packet = struct.pack('<6f', 
                                    ground_sensor_values[0], 
                                    ground_sensor_values[1], 
@@ -112,23 +109,40 @@ while robot.step(timestep) != -1:
                                    right_velocity, 
                                    timestep_seconds)
     
-    # ================================================================
-    # BINARY PROTOCOL TESTING
-    # ================================================================
-    
-    # For testing, we'll just verify packet construction
-    # Actual transmission will be implemented in next version
-    packet_size = len(sensor_data_packet)
-    
-    # Verify packet can be unpacked correctly
-    unpacked_data = struct.unpack('<6f', sensor_data_packet)
-    
-    # Apply default motor commands (stationary)
-    left_motor_command = 0.0
-    right_motor_command = 0.0
-    
-    left_motor.setVelocity(left_motor_command)
-    right_motor.setVelocity(right_motor_command)
+    try:
+        # ============================================================
+        # SEND SENSOR DATA TO ESP32
+        # ============================================================
+        
+        client_socket.sendall(sensor_data_packet)
+        
+        # ============================================================
+        # RECEIVE MOTOR COMMANDS FROM ESP32
+        # ============================================================
+        
+        # Wait for motor command response (2 floats = 8 bytes)
+        motor_command_response = client_socket.recv(8)
+        
+        if not motor_command_response:
+            print("ESP32 server disconnected.")
+            break
+            
+        # Unpack motor commands
+        left_motor_command, right_motor_command = struct.unpack('<2f', motor_command_response)
+        
+        # ============================================================
+        # EXECUTE MOTOR COMMANDS
+        # ============================================================
+        
+        left_motor.setVelocity(left_motor_command)
+        right_motor.setVelocity(right_motor_command)
+        
+    except socket.error as e:
+        print(f"Communication error: {e}")
+        # Emergency stop on communication failure
+        left_motor.setVelocity(0.0)
+        right_motor.setVelocity(0.0)
+        break
     
     # ================================================================
     # PREPARE FOR NEXT ITERATION
@@ -136,9 +150,11 @@ while robot.step(timestep) != -1:
     
     previous_encoder_values = current_encoder_values[:]
     
-    # Debug output for binary protocol verification
-    # print(f"Packet size: {packet_size} bytes | Data: {unpacked_data}")
+    # Debug output (uncomment for testing)
+    # print(f"Sent: GS=[{ground_sensor_values[0]:.0f},{ground_sensor_values[1]:.0f},{ground_sensor_values[2]:.0f}] "
+    #       f"Vel=[{left_velocity:.2f},{right_velocity:.2f}] | "
+    #       f"Received: Motors=[{left_motor_command:.2f},{right_motor_command:.2f}]")
 
 # Cleanup
-print("Binary protocol execution completed.")
+print("Remote control execution completed.")
 client_socket.close()
